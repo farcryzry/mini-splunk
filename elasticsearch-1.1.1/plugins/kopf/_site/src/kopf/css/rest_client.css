@@ -1,0 +1,25 @@
+.rest-client-request-url {
+	overflow: hidden;
+	display: block;
+}
+.rest-client-request-method {
+	width: 80px;
+	float: right;
+	margin-left: 10px;
+}
+.rest-client-execute {
+	float: right;
+	margin-left: 10px;
+	line-height: 12px;
+}
+.rest-client-request-body {
+	font-size: 11px;
+	margin-top: 20px;
+}
+.rest-response {
+	padding: 5px;
+}
+.request-client-request-body-options {
+	overflow: hidden;
+	display: block;
+}
