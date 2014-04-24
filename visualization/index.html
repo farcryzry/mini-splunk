@@ -1,0 +1,173 @@
+<html>
+  <head>
+    <script type='text/javascript' src='js/jquery-1.11.0.min.js'></script>
+    <script type='text/javascript' src='https://www.google.com/jsapi'></script>
+    <script type='text/javascript'>
+
+      google.load('visualization', '1', {packages:['gauge', 'corechart', 'annotationchart']});
+      google.setOnLoadCallback(function() {
+        var refreshGauge = function() {
+          loadGaugeData();
+          setTimeout(refreshGauge, 3000);
+        }
+        refreshGauge();
+
+        loadLineData();
+
+        loadAnnData();
+      });
+
+      function loadGaugeData(){
+          $.ajax({
+              url: 'http://localhost:9200/logstash-2014.04.23/_search?sort=@timestamp:desc&size=5',
+              async: false,
+              success: function(data){
+                if(data){
+
+                    var cpu = 0;
+                    var memory = 0;
+                    var io_read = 0;
+                    var io_written = 0;
+                    var thread = 0;
+
+                    for(var i = data.hits.hits.length-1; i >=0; i--) {
+                      var element = data.hits.hits[i];
+                      if(element._type == 'cpu') {
+                        cpu = element._source.percent;
+                      } else if(element._type == 'memory') {
+                        memory = element._source.rate;
+                      } else if(element._type == 'io') {
+                        io_read = element._source['kbread-s'];
+                        io_written = element._source['kb-wrtn-s'];
+                      } else if(element._type == 'thread') {
+                        thread = element._source.total;
+                      }
+
+                    }
+
+                    data1 = [
+                      ['Label', 'Value'],
+                      ['Memory', parseFloat(parseFloat(memory).toFixed(2))],
+                      ['CPU', parseFloat(parseFloat(cpu).toFixed(2))]
+                    ];
+
+                    var options1 = {
+                      width: 300, height: 200,
+                      redFrom: 90, redTo: 100,
+                      yellowFrom:75, yellowTo: 90,
+                      minorTicks: 5,
+                      animation: {easing: 'out'}
+                    };
+
+                    drawGaugeChart(data1, options1, 'chart1_div');
+
+
+                    data2 = [
+                      ['Label', 'Value'],
+                      ['IO Read', parseFloat(parseFloat(io_read).toFixed(2))],
+                      ['IO Written', parseFloat(parseFloat(io_written).toFixed(2))],
+                      ['Threads', parseFloat(parseFloat(thread).toFixed(2))]
+                    ];
+
+                    var options2 = {
+                      width: 450, height: 200,
+                      redFrom: 900, redTo: 1000,
+                      yellowFrom:750, yellowTo: 900,
+                      max: 1000,
+                      minorTicks: 10,
+                      animation: {easing: 'out'}
+                    };
+
+                    drawGaugeChart(data2, options2, 'chart2_div');
+                  }
+              },
+          });
+      };
+
+      function loadLineData(){
+          $.ajax({
+              url: 'http://localhost:9200/logstash-2014.04.23/cpu/_search?sort=@timestamp&size=100',
+              async: false,
+              success: function(data){
+                if(data){
+
+                    var finalData = [];
+
+                    data.hits.hits.forEach(function(element){
+                        finalData.push([new Date(element._source['@timestamp']), parseFloat(element._source.percent)]);
+                    });
+
+                    drawLineChart(finalData, "CPU Usage (%) History", 'chart4_div');
+              }
+            }
+        });
+      }
+
+      function loadAnnData(){
+          $.ajax({
+              url: 'http://localhost:9200/logstash-2014.04.23/cpu/_search?sort=@timestamp&size=9999999',
+              async: false,
+              success: function(data){
+                if(data){
+
+                    var finalData = [];
+
+                    data.hits.hits.forEach(function(element){
+                        finalData.push([new Date(element._source['@timestamp']), parseFloat(element._source.percent)]);
+                    });
+
+                    drawAnnChart(finalData, 'chart3_div');
+              }
+            }
+        });
+      }
+      
+
+      function drawGaugeChart(data, options, div) {
+        var table = google.visualization.arrayToDataTable(data);
+        var chart = new google.visualization.Gauge(document.getElementById(div));
+        chart.draw(table, options);
+      };
+
+      function drawLineChart(data, chartTitle, div) {
+
+        //var table = google.visualization.arrayToDataTable(data);
+
+        var table = new google.visualization.DataTable();
+        table.addColumn('date', 'Time');
+        table.addColumn('number', 'Percent');
+        table.addRows(data);
+
+        var dataView = new google.visualization.DataView(table);
+        dataView.setColumns([{calc: function(data, row) { 
+          return data.getFormattedValue(row, 0); 
+        }, type:'string'}, 1]);
+
+        var chart = new google.visualization.LineChart(document.getElementById(div));
+        chart.draw(dataView, {
+          title: chartTitle,
+          hAxis: {format: 'dd'}
+        });
+      }
+
+      function drawAnnChart(data, div) {
+        var table = new google.visualization.DataTable();
+        table.addColumn('date', 'Date');
+        table.addColumn('number', 'CPU Usage');
+        table.addRows(data);
+
+        var chart = new google.visualization.AnnotationChart(document.getElementById(div));
+        chart.draw(table, {
+          displayAnnotations: false,
+        });
+      }
+
+    </script>
+  </head>
+  <body>
+    <div id='chart1_div'></div>
+    <div id='chart2_div'></div>
+    <div id="chart3_div" style="width: 100%; height: 500px;"></div>
+    <div id="chart4_div" style="display: none; width: 100%; height: 500px;"></div>
+  </body>
+</html>
